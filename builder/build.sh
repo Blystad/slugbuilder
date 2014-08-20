@@ -1,15 +1,7 @@
 #!/bin/bash
 set -eo pipefail
 
-if [[ "$1" == "-" ]]; then
-	slug_file="$1"
-else
-	slug_file=/tmp/slug.tgz
-	if [[ "$1" ]]; then
-		put_url="$1"
-	fi
-fi
-
+slug_file=/tmp/slug.tgz
 app_dir=/app
 build_root=/tmp/build
 cache_root=/tmp/cache
@@ -44,12 +36,15 @@ function ensure_indent() {
       echo $'\e[1G      ' "$line" | output_redirect
     fi
 
-  done 
+  done
 }
 
-## Load source from STDIN
-
-cat | tar -xmC $app_dir
+## Copy application code over
+if [ -d "/tmp/app" ]; then
+	cp -rf /tmp/app/. $app_dir
+else
+	cat | tar -xmC $app_dir
+fi
 
 # In heroku, there are two separate directories, and some
 # buildpacks expect that.
@@ -122,12 +117,8 @@ if [[ -f "$build_root/.slugignore" ]]; then
 else
 	tar --exclude='.git' --use-compress-program=pigz -C $build_root -cf $slug_file . | cat
 fi
-  
+
 if [[ "$slug_file" != "-" ]]; then
 	slug_size=$(du -Sh "$slug_file" | cut -f1)
 	echo_title "Compiled slug size is $slug_size"
-
-	if [[ $put_url ]]; then
-		curl -0 -s -o /dev/null -X PUT -T $slug_file "$put_url" 
-	fi
 fi
